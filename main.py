@@ -5,8 +5,9 @@ import os
 import cv2
 from tkVideoPlayer import TkinterVideo
 import datetime
-from math import floor
+import math
 import glob 
+from facecode import *
 
 def import_folder():
     global total_width
@@ -21,6 +22,7 @@ def import_folder():
         files = glob.glob(directory + "/*")
         files.sort(key = os.path.getmtime)
         image_list = []
+        listbox.delete(0, END)
         for path in files:
             if(path.endswith(".jpg") or path.endswith(".png")):
                 img = cv2.imread(path)
@@ -39,6 +41,10 @@ def preview():
 
     new_image_list = [image_list[index] for index in list(listbox.curselection())]
 
+    if(facecode_option == 1):
+        for i in range(len(new_image_list)):
+            new_image_list[i] = facecode(new_image_list[i])
+
     output = cv2.VideoWriter("output.avi", cv2.VideoWriter_fourcc(*"DIVX"), fps = FPS, frameSize = (mean_height, mean_width))
     for image in new_image_list:
         output.write(image)
@@ -47,13 +53,16 @@ def preview():
     global video_player
     video_player = TkinterVideo(video_frame, scaled = True)
     video_player.load("output.avi")
+    video_player.set_scaled(False)
+    video_player.keep_aspect(True)
     video_player.pack(expand = True, fill = "both")
-
+    
     slider.config(to = 0, from_ = 0)
     timestamp.set(0)
 
     video_player.bind("<<Duration>>", duration)
     video_player.bind("<<SecondChanged>>", get_timestamp)
+    video_player.bind("<<Ended>>", video_player.stop())
 
 def show(event):
     global image
@@ -88,25 +97,25 @@ def duration(event):
 def get_timestamp(event):
     timestamp.set(video_player.current_duration())
 
-def clear1(event):
-    if(not entry1.get().isdecimal()):
-        entry1.delete(0, "end")
+def clear_fps_entry(event):
+    if(not fps_entry.get().isdecimal()):
+        fps_entry.delete(0, "end")
 
-def clear2(event):
-    if(not entry2.get().isdecimal()):
-        entry2.delete(0, "end")
+def clear_time_entry(event):
+    if(not time_entry.get().isdecimal()):
+        time_entry.delete(0, "end")
 
-def get_FPS_1(event):
+def get_FPS(event):
     global FPS
     try:
-        FPS = int(entry1.get())
+        FPS = int(fps_entry.get())
     except:
         pass
 
-def get_FPS_2(event):
+def get_FPS_by_time(event):
     global FPS
     try:
-        FPS = floor(len(image_list) / int(entry2.get()))
+        FPS = math.round(len(image_list) / int(time_entry.get()))
     except:
         pass
 
@@ -138,22 +147,25 @@ top_frame.pack(pady = 5)
 import_button = Button(top_frame, text = "Import", command = import_folder, bg = menu_bar, fg = text)
 import_button.pack(side = "left")
 
-checkbox = Checkbutton(top_frame, command = select_all, text = "All images?", bg = menu_bar, fg = text, selectcolor = menu_bar, activebackground = menu_bar, activeforeground = text)
-checkbox.pack(side = "left", padx = 5)
+select_option = IntVar()
+select_checkbox = Checkbutton(top_frame, variable = select_option, command = select_all, onvalue = 1, offvalue = 0, text = "All images?", bg = menu_bar, fg = text, selectcolor = menu_bar, activebackground = menu_bar, activeforeground = text)
+select_checkbox.pack(side = "left", padx = 5)
 
+facecode_option = IntVar()
+facecode_checkbox = Checkbutton(top_frame, variable = facecode_option, onvalue = 1, offvalue = 0, text = "Use Facecode?", bg = menu_bar, fg = text, selectcolor = menu_bar, activebackground = menu_bar, activeforeground = text)
+facecode_checkbox.pack(side = "left", padx = 5)
 
+fps_entry = Entry(top_frame, width = 5)
+fps_entry.insert(0, "FPS")
+fps_entry.pack(side = "left", padx = 5)
+fps_entry.bind("<FocusIn>", clear_fps_entry)
+fps_entry.bind("<Leave>", get_FPS)
 
-entry1 = Entry(top_frame, width = 5)
-entry1.insert(0, "FPS")
-entry1.pack(side = "left", padx = 5)
-entry1.bind("<FocusIn>", clear1)
-entry1.bind("<Leave>", get_FPS_1)
-
-entry2 = Entry(top_frame, width = 10)
-entry2.insert(0, "In Seconds")
-entry2.pack(side = "left", padx = 5)
-entry2.bind("<FocusIn>", clear2)
-entry2.bind("<Leave>", get_FPS_2)
+time_entry = Entry(top_frame, width = 10)
+time_entry.insert(0, "In Seconds")
+time_entry.pack(side = "left", padx = 5)
+time_entry.bind("<FocusIn>", clear_time_entry)
+time_entry.bind("<Leave>", get_FPS_by_time)
 
 preview_button = Button(top_frame, text = "Preview", command = preview, bg = menu_bar, fg = text)
 preview_button.pack(side = "left", padx = 5)
@@ -191,11 +203,12 @@ slider_frame = Frame(root, bg = background, width = 100)
 slider_frame.pack()
 
 start_time = Label(slider_frame, text=str(datetime.timedelta(seconds = 0)), bg = background, fg = text)
-start_time.pack(side="left")
+start_time.pack(side = "left")
 
 timestamp = IntVar()
-slider = Scale(slider_frame, variable = timestamp, from_ = 0, to = 0, orient = "horizontal", bg = menu_bar, troughcolor = menu_bar, highlightthickness = 0, length = 0.25 * win_width, command = seek, fg = text)
+slider = Scale(slider_frame, variable = timestamp, from_ = 0, to = 0, orient = "horizontal", bg = menu_bar, troughcolor = menu_bar, highlightthickness = 0, length = 0.5 * win_width, command = seek, fg = text)
 slider.pack(side = "left")
+slider.bind("<ButtonRelease-1>", seek)
 
 end_time = Label(slider_frame, text = str(datetime.timedelta(seconds = 0)), bg = background, fg = text)
 end_time.pack(side = "left")

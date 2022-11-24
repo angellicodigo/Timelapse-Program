@@ -40,6 +40,7 @@ def preview():
 
     width = int(mean_width / len(image_list))
     height = int(mean_height / len(image_list))
+    print("hi")
 
     video_label.place_forget()
 

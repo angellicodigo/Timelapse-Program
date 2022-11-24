@@ -7,52 +7,47 @@ from tkVideoPlayer import TkinterVideo
 import datetime
 from math import floor
 import glob 
-import time
-
 
 def import_folder():
-    global mean_width
-    global mean_height
+    global total_width
+    global total_height
     global image_list
-    global image_list_names
 
-    mean_width = 0
-    mean_height = 0
+    total_width = 0
+    total_height = 0
 
     directory = askdirectory(mustexist = True)
     if(os.path.isdir(directory)):
         files = glob.glob(directory + "/*")
         files.sort(key = os.path.getmtime)
         image_list = []
-        image_list_names = []
         for path in files:
             if(path.endswith(".jpg") or path.endswith(".png")):
                 img = cv2.imread(path)
                 width, height, _ = img.shape
-                mean_width += width
-                mean_height += height
+                total_width += width
+                total_height += height
                 image_list.append(img)
-                image_list_names.append(path[len(directory) + 1:])
                 listbox.insert(END, path[len(directory) + 1:])
 
 def preview():
     global FPS
 
-    width = int(mean_width / len(image_list))
-    height = int(mean_height / len(image_list))
-    print("hi")
-
+    mean_width = int(total_width / len(image_list))
+    mean_height = int(total_height / len(image_list))
     video_label.place_forget()
 
-    output = cv2.VideoWriter("output.avi", cv2.VideoWriter_fourcc(*"DIVX"), fps = FPS, frameSize = (height, width))
-    for image in image_list:
+    new_image_list = [image_list[index] for index in list(listbox.curselection())]
+
+    output = cv2.VideoWriter("output.avi", cv2.VideoWriter_fourcc(*"DIVX"), fps = FPS, frameSize = (mean_height, mean_width))
+    for image in new_image_list:
         output.write(image)
     output.release()
     
     global video_player
-    video_player = TkinterVideo(video_frame)
+    video_player = TkinterVideo(video_frame, scaled = True)
     video_player.load("output.avi")
-    video_player.pack(expand = True)
+    video_player.pack(expand = True, fill = "both")
 
     slider.config(to = 0, from_ = 0)
     timestamp.set(0)
@@ -61,12 +56,20 @@ def preview():
     video_player.bind("<<SecondChanged>>", get_timestamp)
 
 def show(event):
-    img_name = listbox.get(listbox.curselection())
-    index = image_list_names.index(img_name)
-    image_pil = Image.fromarray(cv2.cvtColor(image_list[index], cv2.COLOR_BGR2RGB))
-    height, width = image_pil.size
-    image = ImageTk.PhotoImage(image_pil)
-    image_display.config(image = image, height = height, width = width)
+    global image
+    
+    if(len(listbox.curselection()) == 0):
+        image_display.config(image = '', height = 0, width = 0)
+    else:
+        if(len(listbox.curselection()) > len(stack)):
+            stack.append(list(set(listbox.curselection()) - set(stack))[0])
+        elif(len(listbox.curselection()) < len(stack)):
+            stack.remove(list(set(stack) - set(listbox.curselection()))[0])
+
+        image_pil = Image.fromarray(cv2.cvtColor(image_list[stack[-1]], cv2.COLOR_BGR2RGB))
+        height, width = image_pil.size
+        image = ImageTk.PhotoImage(image_pil)
+        image_display.config(image = image, height = height, width = width)
     
 def play():
     if video_player.is_paused():
@@ -107,6 +110,12 @@ def get_FPS_2(event):
     except:
         pass
 
+def select_all():
+    global stack
+
+    listbox.select_set(0, END)
+    stack = [i for i in range(len(image_list))]
+
 root = Tk()
 root.state("zoomed")
 root.title("Timelapse")
@@ -127,7 +136,12 @@ top_frame = Frame(root, bg = background)
 top_frame.pack(pady = 5)
 
 import_button = Button(top_frame, text = "Import", command = import_folder, bg = menu_bar, fg = text)
-import_button.pack(side = "left", padx = 5)
+import_button.pack(side = "left")
+
+checkbox = Checkbutton(top_frame, command = select_all, text = "All images?", bg = menu_bar, fg = text, selectcolor = menu_bar, activebackground = menu_bar, activeforeground = text)
+checkbox.pack(side = "left", padx = 5)
+
+
 
 entry1 = Entry(top_frame, width = 5)
 entry1.insert(0, "FPS")
@@ -147,7 +161,11 @@ preview_button.pack(side = "left", padx = 5)
 frame = Frame(root, bg = background)
 frame.pack(padx = 5)
 
-listbox = Listbox(frame, bg = menu_bar, fg = text)
+image_display = Label(frame, bg = background, height = 0, width = 0)
+image_display.pack(side = "left", padx = 10)
+
+stack = []
+listbox = Listbox(frame, bg = menu_bar, fg = text, selectmode = "multiple")
 listbox.pack(side = "left", fill = "both")
 listbox.bind("<<ListboxSelect>>", show)
 
@@ -156,12 +174,9 @@ scrollbar.pack(side = "left", fill = "both")
 listbox.config(yscrollcommand = scrollbar.set)
 scrollbar.config(command = listbox.yview)
 
-image_display = Label(frame, bg = background, height = 0, width = 0)
-image_display.pack(side = "left", padx = 10)
-
 video_frame = Frame(frame, height = 0.5 * win_height, width = 0.5 * win_width, bg = "#FFFFFF")
 video_frame.pack_propagate(False)
-video_frame.pack(side = "left")
+video_frame.pack(side = "left", padx = 10)
 
 video_label = Label(video_frame, text = "Preview video will be displayed here", bg = menu_bar, fg = text)
 video_label.place(relwidth = 1, relheight = 1)
@@ -182,7 +197,7 @@ timestamp = IntVar()
 slider = Scale(slider_frame, variable = timestamp, from_ = 0, to = 0, orient = "horizontal", bg = menu_bar, troughcolor = menu_bar, highlightthickness = 0, length = 0.25 * win_width, command = seek, fg = text)
 slider.pack(side = "left")
 
-end_time = Label(slider_frame, text=str(datetime.timedelta(seconds = 0)), bg = background, fg = text)
-end_time.pack(side="left")
+end_time = Label(slider_frame, text = str(datetime.timedelta(seconds = 0)), bg = background, fg = text)
+end_time.pack(side = "left")
 
 root.mainloop()

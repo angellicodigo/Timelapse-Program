@@ -5,7 +5,6 @@ import os
 import cv2
 from tkVideoPlayer import TkinterVideo
 import datetime
-import math
 import glob 
 from facecode import *
 
@@ -33,7 +32,10 @@ def import_folder():
                 listbox.insert(END, path[len(directory) + 1:])
 
 def preview():
-    FPS = get_FPS()
+    try:
+        FPS = int(fps_entry.get())
+    except:
+        FPS = round(len(image_list) / int(time_entry.get()))
 
     mean_width = int(total_width / len(image_list))
     mean_height = int(total_height / len(image_list))
@@ -52,9 +54,6 @@ def preview():
     output.release()
 
     video_player.load("output.avi")
-    video_player.set_scaled(False)
-    video_player.keep_aspect(True)
-    video_player.pack(expand = True, fill = "both")
     slider.config(to = 0, from_ = 0)
     timestamp.set(0)
 
@@ -101,16 +100,6 @@ def clear_fps_entry(event):
 def clear_time_entry(event):
     if(not time_entry.get().isdecimal()):
         time_entry.delete(0, "end")
-
-def get_FPS():
-        return int(fps_entry.get())
-
-def get_FPS_by_time(event):
-    global FPS
-    try:
-        FPS = math.round(len(image_list) / int(time_entry.get()))
-    except:
-        pass
 
 def select_all():
     global stack
@@ -183,7 +172,11 @@ scrollbar.config(command = listbox.yview)
 video_frame = Frame(frame, height = 0.5 * win_height, width = 0.5 * win_width, bg = "#FFFFFF")
 video_frame.pack_propagate(False)
 video_frame.pack(side = "left", padx = 10)
+
 video_player = TkinterVideo(video_frame, scaled = True)
+video_player.set_scaled(False)
+video_player.keep_aspect(True)
+video_player.pack(expand = True, fill = "both")
 
 video_label = Label(video_frame, text = "Preview video will be displayed here", bg = menu_bar, fg = text)
 video_label.place(relwidth = 1, relheight = 1)

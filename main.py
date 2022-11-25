@@ -33,14 +33,14 @@ def import_folder():
                 listbox.insert(END, path[len(directory) + 1:])
 
 def preview():
-    global FPS
+    FPS = get_FPS()
 
     mean_width = int(total_width / len(image_list))
     mean_height = int(total_height / len(image_list))
     video_label.place_forget()
 
     new_image_list = [image_list[index] for index in list(listbox.curselection())]
-
+    print(len(new_image_list))
     if(facecode_option == 1):
         for i in range(len(new_image_list)):
             new_image_list[i] = facecode(new_image_list[i])
@@ -48,21 +48,18 @@ def preview():
     output = cv2.VideoWriter("output.avi", cv2.VideoWriter_fourcc(*"DIVX"), fps = FPS, frameSize = (mean_height, mean_width))
     for image in new_image_list:
         output.write(image)
-    output.release()
     
-    global video_player
-    video_player = TkinterVideo(video_frame, scaled = True)
+    output.release()
+
     video_player.load("output.avi")
     video_player.set_scaled(False)
     video_player.keep_aspect(True)
     video_player.pack(expand = True, fill = "both")
-    
     slider.config(to = 0, from_ = 0)
     timestamp.set(0)
 
     video_player.bind("<<Duration>>", duration)
     video_player.bind("<<SecondChanged>>", get_timestamp)
-    video_player.bind("<<Ended>>", video_player.stop())
 
 def show(event):
     global image
@@ -105,12 +102,8 @@ def clear_time_entry(event):
     if(not time_entry.get().isdecimal()):
         time_entry.delete(0, "end")
 
-def get_FPS(event):
-    global FPS
-    try:
-        FPS = int(fps_entry.get())
-    except:
-        pass
+def get_FPS():
+        return int(fps_entry.get())
 
 def get_FPS_by_time(event):
     global FPS
@@ -121,9 +114,12 @@ def get_FPS_by_time(event):
 
 def select_all():
     global stack
-
-    listbox.select_set(0, END)
-    stack = [i for i in range(len(image_list))]
+    if(select_option.get() == 1):
+        listbox.select_set(0, END)
+        stack = [i for i in range(len(image_list))]
+    elif(select_option.get() == 0):
+        listbox.selection_clear(0, END)
+        stack = []
 
 root = Tk()
 root.state("zoomed")
@@ -159,13 +155,11 @@ fps_entry = Entry(top_frame, width = 5)
 fps_entry.insert(0, "FPS")
 fps_entry.pack(side = "left", padx = 5)
 fps_entry.bind("<FocusIn>", clear_fps_entry)
-fps_entry.bind("<Leave>", get_FPS)
 
 time_entry = Entry(top_frame, width = 10)
 time_entry.insert(0, "In Seconds")
 time_entry.pack(side = "left", padx = 5)
 time_entry.bind("<FocusIn>", clear_time_entry)
-time_entry.bind("<Leave>", get_FPS_by_time)
 
 preview_button = Button(top_frame, text = "Preview", command = preview, bg = menu_bar, fg = text)
 preview_button.pack(side = "left", padx = 5)
@@ -189,6 +183,7 @@ scrollbar.config(command = listbox.yview)
 video_frame = Frame(frame, height = 0.5 * win_height, width = 0.5 * win_width, bg = "#FFFFFF")
 video_frame.pack_propagate(False)
 video_frame.pack(side = "left", padx = 10)
+video_player = TkinterVideo(video_frame, scaled = True)
 
 video_label = Label(video_frame, text = "Preview video will be displayed here", bg = menu_bar, fg = text)
 video_label.place(relwidth = 1, relheight = 1)

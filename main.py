@@ -41,8 +41,8 @@ def preview():
     mean_height = int(total_height / len(image_list))
     video_label.place_forget()
 
-    new_image_list = [image_list[index] for index in list(listbox.curselection())]
-    print(len(new_image_list))
+    new_image_list = [image_list[index] for index in stack]
+
     if(facecode_option == 1):
         for i in range(len(new_image_list)):
             new_image_list[i] = facecode(new_image_list[i])

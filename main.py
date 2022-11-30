@@ -3,8 +3,6 @@ from PIL import Image, ImageTk
 from tkinter.filedialog import askdirectory
 import os 
 import cv2
-from tkVideoPlayer import TkinterVideo
-import datetime
 import glob 
 from facecode import *
 
@@ -39,23 +37,36 @@ def preview():
 
     mean_width = int(total_width / len(image_list))
     mean_height = int(total_height / len(image_list))
-    video_label.place_forget()
 
     new_image_list = [image_list[index] for index in stack]
     if(facecode_option == 1):
         for i in range(len(new_image_list)):
             new_image_list[i] = facecode(new_image_list[i])
 
-    output = cv2.VideoWriter("output.mp4", cv2.VideoWriter_fourcc("M", "J", "4", "2"), fps = FPS, frameSize = (mean_height, mean_width))
+    filename = "output.mp4"
+    output = cv2.VideoWriter(filename, cv2.VideoWriter_fourcc("M", "J", "4", "2"), fps = FPS, frameSize = (mean_height, mean_width))
     for image in new_image_list:
         output.write(image)
     
     output.release()
+    # os.startfile("output.mp4")
+    play(filename)
 
-    video_player.load("output.mp4")
-    timestamp.set(0)
-    video_player.bind("<<Duration>>", duration)
-    video_player.bind("<<SecondChanged>>", get_timestamp)
+def play(filename):
+    cv2.destroyAllWindows()
+    cap = cv2.VideoCapture(filename)
+    cv2.namedWindow("Preview")
+
+    while(cap.isOpened()):
+        ret, frame = cap.read()
+        if ret == True:
+            cv2.imshow("Preview", frame)
+
+            if cv2.waitKey(10) & 0xFF == ord("q"):
+                break
+        else:
+            break
+    cap.release()
     
 def show(event):
     global image
@@ -72,24 +83,6 @@ def show(event):
         height, width = image_pil.size
         image = ImageTk.PhotoImage(image_pil)
         image_display.config(image = image, height = height, width = width)
-    
-def play():
-    if video_player.is_paused():
-        video_player.play()
-    else:
-        video_player.pause()
-
-def seek(value):
-    video_player.seek(int(value))
-
-def duration(event):
-    duration = video_player.video_info()["duration"]
-    #duration = round(duration)
-    end_time["text"] = str(datetime.timedelta(seconds = duration))
-    slider["to"] = duration
-
-def get_timestamp(event):
-    timestamp.set(video_player.current_duration())
 
 def clear_fps_entry(event):
     if(not fps_entry.get().isdecimal()):
@@ -117,7 +110,7 @@ win_height = root.winfo_screenheight()
 # Spotify dark mode color scheme
 background = "#121212"
 menu_bar = "#404040"
-text = "#FFFFFF"
+text_color = "#FFFFFF"
 
 ico = Image.open("timelapse.png")
 photo = ImageTk.PhotoImage(ico)
@@ -127,15 +120,15 @@ root.configure(bg = background)
 top_frame = Frame(root, bg = background)
 top_frame.pack(pady = 5)
 
-import_button = Button(top_frame, text = "Import", command = import_folder, bg = menu_bar, fg = text)
+import_button = Button(top_frame, text = "Import", command = import_folder, bg = menu_bar, fg = text_color)
 import_button.pack(side = "left")
 
 select_option = IntVar()
-select_checkbox = Checkbutton(top_frame, variable = select_option, command = select_all, onvalue = 1, offvalue = 0, text = "All images?", bg = menu_bar, fg = text, selectcolor = menu_bar, activebackground = menu_bar, activeforeground = text)
+select_checkbox = Checkbutton(top_frame, variable = select_option, command = select_all, onvalue = 1, offvalue = 0, text = "All images?", bg = menu_bar, fg = text_color, selectcolor = menu_bar, activebackground = menu_bar, activeforeground = text_color)
 select_checkbox.pack(side = "left", padx = 5)
 
 facecode_option = IntVar()
-facecode_checkbox = Checkbutton(top_frame, variable = facecode_option, onvalue = 1, offvalue = 0, text = "Use Facecode?", bg = menu_bar, fg = text, selectcolor = menu_bar, activebackground = menu_bar, activeforeground = text)
+facecode_checkbox = Checkbutton(top_frame, variable = facecode_option, onvalue = 1, offvalue = 0, text = "Use Facecode?", bg = menu_bar, fg = text_color, selectcolor = menu_bar, activebackground = menu_bar, activeforeground = text_color)
 facecode_checkbox.pack(side = "left", padx = 5)
 
 fps_entry = Entry(top_frame, width = 5)
@@ -148,54 +141,39 @@ time_entry.insert(0, "In Seconds")
 time_entry.pack(side = "left", padx = 5)
 time_entry.bind("<FocusIn>", clear_time_entry)
 
-preview_button = Button(top_frame, text = "Preview", command = preview, bg = menu_bar, fg = text)
+preview_button = Button(top_frame, text = "Preview", command = preview, bg = menu_bar, fg = text_color)
 preview_button.pack(side = "left", padx = 5)
 
-frame = Frame(root, bg = background)
-frame.pack(padx = 5)
+bottom_frame = Frame(root, bg = background, height = 0.5 * win_height)
+bottom_frame.pack(padx = 5)
 
-image_display = Label(frame, bg = background, height = 0, width = 0)
+image_display = Label(bottom_frame, bg = background, height = 0, width = 0)
 image_display.pack(side = "left", padx = 10)
 
 stack = []
-listbox = Listbox(frame, bg = menu_bar, fg = text, selectmode = "multiple")
+listbox = Listbox(bottom_frame, bg = menu_bar, fg = text_color, selectmode = "multiple", height = 20, width = 20)
 listbox.pack(side = "left", fill = "both")
 listbox.bind("<<ListboxSelect>>", show)
 
-scrollbar = Scrollbar(frame)
+scrollbar = Scrollbar(bottom_frame)
 scrollbar.pack(side = "left", fill = "both")
 listbox.config(yscrollcommand = scrollbar.set)
 scrollbar.config(command = listbox.yview)
 
-video_frame = Frame(frame, height = 0.5 * win_height, width = 0.5 * win_width, bg = "#FFFFFF")
-video_frame.pack_propagate(False)
-video_frame.pack(side = "left", padx = 10)
-
-video_player = TkinterVideo(video_frame, scaled = True)
-video_player.set_scaled(False)
-video_player.keep_aspect(True)
-video_player.pack(expand = True, fill = "both")
-
-video_label = Label(video_frame, text = "Preview video will be displayed here", bg = menu_bar, fg = text)
-video_label.place(relwidth = 1, relheight = 1)
-
-ico2 = Image.open("play.png")
-icon_reize = ico2.resize((50, 50))
-icon = ImageTk.PhotoImage(icon_reize)
-play_button = Button(root, text = "Play", command = play, bg = menu_bar, fg = text, image = icon, height = 50, width = 50)
-play_button.pack(pady = 5)
-
-slider_frame = Frame(root, bg = background, width = 100)
-slider_frame.pack()
-
-start_time = Label(slider_frame, text = str(datetime.timedelta(seconds = 0)), bg = background, fg = text)
-start_time.pack(side = "left")
-
-timestamp = IntVar()
-slider = Scale(slider_frame, variable = timestamp, from_ = 0, to = 0, orient = "horizontal", bg = menu_bar, troughcolor = menu_bar, highlightthickness = 0, length = 0.5 * win_width, command = seek, fg = text)
-slider.pack(side = "left")
-
-end_time = Label(slider_frame, text = str(datetime.timedelta(seconds = 0)), bg = background, fg = text)
-end_time.pack(side = "left")
+text = """
+    Please input a folder of images.\n
+    Select the images with the listbox to the left,\n
+    or select all of the images with the checkbox.\n
+    To use the "Facecode" program,\n 
+    click on the desired checkbox.\n
+    Please enter an integer in the "FPS" box,\n
+    or input the amount of seconds the video should be.\n
+    You cannot have a value in both boxes.\n
+    nce done, click on the "Preview" button\n
+    to open the video in a new window. The video is\n
+    save in your downloads.
+"""
+text_label = Label(bottom_frame, text = text, height = 25, width = 45, bg = menu_bar, fg = text_color)
+text_label.pack(side = "left", padx = 10)
 
 root.mainloop()

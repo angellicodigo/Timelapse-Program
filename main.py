@@ -42,24 +42,21 @@ def preview():
     video_label.place_forget()
 
     new_image_list = [image_list[index] for index in stack]
-
     if(facecode_option == 1):
         for i in range(len(new_image_list)):
             new_image_list[i] = facecode(new_image_list[i])
 
-    output = cv2.VideoWriter("output.avi", cv2.VideoWriter_fourcc(*"DIVX"), fps = FPS, frameSize = (mean_height, mean_width))
+    output = cv2.VideoWriter("output.mp4", cv2.VideoWriter_fourcc("M", "J", "4", "2"), fps = FPS, frameSize = (mean_height, mean_width))
     for image in new_image_list:
         output.write(image)
     
     output.release()
 
-    video_player.load("output.avi")
-    slider.config(to = 0, from_ = 0)
+    video_player.load("output.mp4")
     timestamp.set(0)
-
     video_player.bind("<<Duration>>", duration)
     video_player.bind("<<SecondChanged>>", get_timestamp)
-
+    
 def show(event):
     global image
     
@@ -87,6 +84,7 @@ def seek(value):
 
 def duration(event):
     duration = video_player.video_info()["duration"]
+    #duration = round(duration)
     end_time["text"] = str(datetime.timedelta(seconds = duration))
     slider["to"] = duration
 
@@ -190,13 +188,12 @@ play_button.pack(pady = 5)
 slider_frame = Frame(root, bg = background, width = 100)
 slider_frame.pack()
 
-start_time = Label(slider_frame, text=str(datetime.timedelta(seconds = 0)), bg = background, fg = text)
+start_time = Label(slider_frame, text = str(datetime.timedelta(seconds = 0)), bg = background, fg = text)
 start_time.pack(side = "left")
 
 timestamp = IntVar()
 slider = Scale(slider_frame, variable = timestamp, from_ = 0, to = 0, orient = "horizontal", bg = menu_bar, troughcolor = menu_bar, highlightthickness = 0, length = 0.5 * win_width, command = seek, fg = text)
 slider.pack(side = "left")
-slider.bind("<ButtonRelease-1>", seek)
 
 end_time = Label(slider_frame, text = str(datetime.timedelta(seconds = 0)), bg = background, fg = text)
 end_time.pack(side = "left")

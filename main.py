@@ -85,9 +85,9 @@ def show(event):
         image_display.config(image = '', height = 0, width = 0)
     else:
         if(len(listbox.curselection()) > len(stack)):
-            stack.append(list(set(listbox.curselection()) - set(stack))[0])
+            stack.append([i for i in list(listbox.curselection()) if i not in stack][0])
         elif(len(listbox.curselection()) < len(stack)):
-            stack.remove(list(set(stack) - set(listbox.curselection()))[0])
+            stack.remove([i for i in stack if i not in list(listbox.curselection())][0])
 
         image_pil = Image.fromarray(cv2.cvtColor(image_list[stack[-1]], cv2.COLOR_BGR2RGB))
         height, width = image_pil.size

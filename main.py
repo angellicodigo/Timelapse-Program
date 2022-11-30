@@ -5,6 +5,8 @@ import os
 import cv2
 import glob 
 from facecode import *
+from pathlib import Path
+import shutil
 
 def import_folder():
     global total_width
@@ -14,7 +16,9 @@ def import_folder():
     total_width = 0
     total_height = 0
 
+    global directory
     directory = askdirectory(mustexist = True)
+    
     if(os.path.isdir(directory)):
         files = glob.glob(directory + "/*")
         files.sort(key = os.path.getmtime)
@@ -43,6 +47,8 @@ def preview():
         for i in range(len(new_image_list)):
             new_image_list[i] = facecode(new_image_list[i])
 
+    download_path = str(Path.home()) + "\Downloads"
+    
     filename = "output.mp4"
     output = cv2.VideoWriter(filename, cv2.VideoWriter_fourcc("M", "J", "4", "2"), fps = FPS, frameSize = (mean_height, mean_width))
     for image in new_image_list:
@@ -51,6 +57,10 @@ def preview():
     output.release()
     # os.startfile("output.mp4")
     play(filename)
+    if(os.path.isfile(download_path + f"\{filename}")):
+        os.remove(download_path + f"\{filename}")
+    
+    shutil.move(os.getcwd() + f"\{filename}", download_path)
 
 def play(filename):
     cv2.destroyAllWindows()
@@ -101,6 +111,7 @@ def select_all():
         listbox.selection_clear(0, END)
         stack = []
 
+# All of Tkinter GUI objects 
 root = Tk()
 root.state("zoomed")
 root.title("Timelapse")

@@ -67,17 +67,18 @@ def play(filename):
     cap = cv2.VideoCapture(filename)
     cv2.namedWindow("Preview")
 
-    while(cap.isOpened()):
+    while(cv2.isOpened()):
         ret, frame = cap.read()
         if ret == True:
             cv2.imshow("Preview", frame)
 
-            if cv2.waitKey(10) & 0xFF == ord("q"):
-                break
-        else:
+        key = cv2.waitKey(30)
+        if key == 32:
             break
+
     cap.release()
-    
+    cv2.destroyAllWindows()
+
 def show(event):
     global image
     

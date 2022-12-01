@@ -32,7 +32,7 @@ def import_folder():
                 total_height += height
                 image_list.append(img)
                 listbox.insert(END, path[len(directory) + 1:])
-
+ 
 def preview():
     try:
         FPS = int(fps_entry.get())
@@ -50,34 +50,17 @@ def preview():
     download_path = str(Path.home()) + "\Downloads"
     
     filename = "output.mp4"
-    output = cv2.VideoWriter(filename, cv2.VideoWriter_fourcc("M", "J", "4", "2"), fps = FPS, frameSize = (mean_height, mean_width))
+    output = cv2.VideoWriter(filename, cv2.VideoWriter_fourcc("m", "p", "4", "v"), fps = FPS, frameSize = (mean_height, mean_width))
     for image in new_image_list:
         output.write(image)
     
     output.release()
-    # os.startfile("output.mp4")
-    play(filename)
+
     if(os.path.isfile(download_path + f"\{filename}")):
         os.remove(download_path + f"\{filename}")
     
     shutil.move(os.getcwd() + f"\{filename}", download_path)
-
-def play(filename):
-    cv2.destroyAllWindows()
-    cap = cv2.VideoCapture(filename)
-    cv2.namedWindow("Preview")
-
-    while(cv2.isOpened()):
-        ret, frame = cap.read()
-        if ret == True:
-            cv2.imshow("Preview", frame)
-
-        key = cv2.waitKey(30)
-        if key == 32:
-            break
-
-    cap.release()
-    cv2.destroyAllWindows()
+    os.startfile(download_path + f"\{filename}")
 
 def show(event):
     global image

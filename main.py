@@ -1,6 +1,8 @@
 from tkinter import *
 from PIL import Image, ImageTk
 from tkinter.filedialog import askdirectory
+from tkVideoPlayer import TkinterVideo
+import datetime
 import os 
 import cv2
 import glob 
@@ -21,7 +23,7 @@ def import_folder():
     
     if(os.path.isdir(directory)):
         files = glob.glob(directory + "/*")
-        files.sort(key = os.path.getmtime)
+        print(files)
         image_list = []
         listbox.delete(0, END)
         for path in files:
@@ -42,6 +44,8 @@ def preview():
     mean_width = int(total_width / len(image_list))
     mean_height = int(total_height / len(image_list))
 
+    video_label.place_forget()
+
     new_image_list = [image_list[index] for index in stack]
     if(facecode_option == 1):
         for i in range(len(new_image_list)):
@@ -60,7 +64,13 @@ def preview():
         os.remove(download_path + f"\{filename}")
     
     shutil.move(os.getcwd() + f"\{filename}", download_path)
-    os.startfile(download_path + f"\{filename}")
+
+    video_player.load(f"{download_path}\{filename}")
+    timestamp.set(0)
+    video_player.bind("<<Duration>>", duration)
+    video_player.bind("<<SecondChanged>>", get_timestamp)
+
+    # os.startfile(download_path + f"\{filename}")
 
 def show(event):
     global image
@@ -77,6 +87,24 @@ def show(event):
         height, width = image_pil.size
         image = ImageTk.PhotoImage(image_pil)
         image_display.config(image = image, height = height, width = width)
+
+def play():
+    if video_player.is_paused():
+        video_player.play()
+    else:
+        video_player.pause()
+
+def seek(value):
+    video_player.seek(float(value))
+
+def duration(event):
+    duration = video_player.video_info()["duration"]
+    duration = round(duration)
+    end_time["text"] = str(datetime.timedelta(seconds = duration))
+    slider["to"] = duration
+
+def get_timestamp(event):
+    timestamp.set(video_player.current_duration())
 
 def clear_fps_entry(event):
     if(not fps_entry.get().isdecimal()):
@@ -155,6 +183,15 @@ scrollbar.pack(side = "left", fill = "both")
 listbox.config(yscrollcommand = scrollbar.set)
 scrollbar.config(command = listbox.yview)
 
+video_frame = Frame(bottom_frame, height = 0.5 * win_height, width = 0.5 * win_width, bg = "#FFFFFF")
+video_frame.pack_propagate(False)
+video_frame.pack(side = "left", padx = 10)
+
+video_player = TkinterVideo(video_frame, scaled = True)
+video_player.set_scaled(False)
+video_player.keep_aspect(True)
+video_player.pack(expand = True, fill = "both")
+
 text = """
     Please input a folder of images.\n
     Select the images with the listbox to the left,\n
@@ -168,7 +205,26 @@ text = """
     to open the video in a new window. The video is\n
     save in your downloads.
 """
-text_label = Label(bottom_frame, text = text, height = 25, width = 45, bg = menu_bar, fg = text_color)
-text_label.pack(side = "left", padx = 10)
+video_label = Label(video_frame, text = text, bg = menu_bar, fg = text_color)
+video_label.place(relwidth = 1, relheight = 1)
+
+ico2 = Image.open("play.png")
+icon_reize = ico2.resize((50, 50))
+icon = ImageTk.PhotoImage(icon_reize)
+play_button = Button(root, text = "Play", command = play, bg = menu_bar, fg = text_color, image = icon, height = 50, width = 50)
+play_button.pack(pady = 5)
+
+slider_frame = Frame(root, bg = background, width = 100)
+slider_frame.pack()
+
+start_time = Label(slider_frame, text = str(datetime.timedelta(seconds = 0)), bg = background, fg = text_color)
+start_time.pack(side = "left")
+
+timestamp = IntVar()
+slider = Scale(slider_frame, variable = timestamp, from_ = 0, to = 0, orient = "horizontal", bg = menu_bar, troughcolor = menu_bar, highlightthickness = 0, length = 0.5 * win_width, command = seek, fg = text_color)
+slider.pack(side = "left")
+
+end_time = Label(slider_frame, text = str(datetime.timedelta(seconds = 0)), bg = background, fg = text_color)
+end_time.pack(side = "left")
 
 root.mainloop()

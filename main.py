@@ -23,40 +23,39 @@ def import_folder():
     
     if(os.path.isdir(directory)):
         files = glob.glob(directory + "/*")
-        print(files)
         image_list = []
         listbox.delete(0, END)
         for path in files:
             if(path.endswith(".jpg") or path.endswith(".png")):
+                image_list.append(path)
                 img = cv2.imread(path)
                 width, height, _ = img.shape
                 total_width += width
                 total_height += height
-                image_list.append(img)
                 listbox.insert(END, path[len(directory) + 1:])
  
 def preview():
+    new_image_list = [image_list[index] for index in stack]
+    if(facecode_option == 1):
+        for i in range(len(new_image_list)):
+            new_image_list[i] = facecode(new_image_list[i])
+
     try:
         FPS = int(fps_entry.get())
     except:
-        FPS = round(len(image_list) / int(time_entry.get()))
+        FPS = round(len(new_image_list) / int(time_entry.get()))
 
     mean_width = int(total_width / len(image_list))
     mean_height = int(total_height / len(image_list))
 
     video_label.place_forget()
 
-    new_image_list = [image_list[index] for index in stack]
-    if(facecode_option == 1):
-        for i in range(len(new_image_list)):
-            new_image_list[i] = facecode(new_image_list[i])
-
     download_path = str(Path.home()) + "\Downloads"
     
     filename = "output.mp4"
     output = cv2.VideoWriter(filename, cv2.VideoWriter_fourcc("m", "p", "4", "v"), fps = FPS, frameSize = (mean_height, mean_width))
     for image in new_image_list:
-        output.write(image)
+        output.write(cv2.imread(image))
     
     output.release()
 
@@ -72,7 +71,7 @@ def preview():
 
     # os.startfile(download_path + f"\{filename}")
 
-def show(event):
+def select(event):
     global image
     
     if(len(listbox.curselection()) == 0):
@@ -83,7 +82,7 @@ def show(event):
         elif(len(listbox.curselection()) < len(stack)):
             stack.remove([i for i in stack if i not in list(listbox.curselection())][0])
 
-        image_pil = Image.fromarray(cv2.cvtColor(image_list[stack[-1]], cv2.COLOR_BGR2RGB))
+        image_pil = Image.fromarray(cv2.cvtColor(cv2.imread(image_list[stack[-1]]), cv2.COLOR_BGR2RGB))
         height, width = image_pil.size
         image = ImageTk.PhotoImage(image_pil)
         image_display.config(image = image, height = height, width = width)
@@ -95,7 +94,7 @@ def play():
         video_player.pause()
 
 def seek(value):
-    video_player.seek(float(value))
+    video_player.seek(int(value))
 
 def duration(event):
     duration = video_player.video_info()["duration"]
@@ -176,7 +175,7 @@ image_display.pack(side = "left", padx = 10)
 stack = []
 listbox = Listbox(bottom_frame, bg = menu_bar, fg = text_color, selectmode = "multiple", height = 20, width = 20)
 listbox.pack(side = "left", fill = "both")
-listbox.bind("<<ListboxSelect>>", show)
+listbox.bind("<<ListboxSelect>>", select)
 
 scrollbar = Scrollbar(bottom_frame)
 scrollbar.pack(side = "left", fill = "both")

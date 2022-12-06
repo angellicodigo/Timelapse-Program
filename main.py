@@ -11,12 +11,7 @@ from pathlib import Path
 import shutil
 
 def import_folder():
-    global total_width
-    global total_height
     global image_list
-
-    total_width = 0
-    total_height = 0
 
     global directory
     directory = askdirectory(mustexist = True)
@@ -28,52 +23,70 @@ def import_folder():
         for path in files:
             if(path.endswith(".jpg") or path.endswith(".png")):
                 image_list.append(path)
+                listbox.insert(END, path[len(directory) + 1:])
+ 
+def preview():
+    if((len(fps_entry.get()) == 0 and len(time_entry.get()) == 0)):
+        error_label.config(text = "Error: Must have a value for either \"FPS\" or \"Length of Video in Seconds\".")
+    elif((len(fps_entry.get()) > 0 and len(time_entry.get()) > 0)):
+        error_label.config(text = "Error: Cannot have a value for both \"FPS\" and \"Length of Video in Seconds\".")
+    elif((len(fps_entry.get()) > 0 and int(fps_entry.get()) == 0) or (len(time_entry.get()) > 0 and int(time_entry.get()) == 0)):
+        error_label.config(text = "Error: Cannot have a value for 0.")
+    else:
+        try:
+            error_label.config(text = "")
+
+            new_image_list = [image_list[index] for index in stack]
+            if(facecode_option == 1):
+                for i in range(len(new_image_list)):
+                    new_image_list[i] = facecode(new_image_list[i])
+
+            total_width = 0
+            total_height = 0
+
+            if(len(fps_entry.get()) > 0):
+                FPS = int(fps_entry.get())
+            elif(len(time_entry.get()) > 0):
+                FPS = round(len(new_image_list) / int(time_entry.get()))
+
+            for path in new_image_list:
                 img = cv2.imread(path)
                 width, height, _ = img.shape
                 total_width += width
                 total_height += height
-                listbox.insert(END, path[len(directory) + 1:])
- 
-def preview():
-    new_image_list = [image_list[index] for index in stack]
-    if(facecode_option == 1):
-        for i in range(len(new_image_list)):
-            new_image_list[i] = facecode(new_image_list[i])
 
-    try:
-        FPS = int(fps_entry.get())
-    except:
-        FPS = round(len(new_image_list) / int(time_entry.get()))
+            mean_width = int(total_width / len(new_image_list))
+            mean_height = int(total_height / len(new_image_list))
 
-    mean_width = int(total_width / len(image_list))
-    mean_height = int(total_height / len(image_list))
+            video_label.place_forget()
+            
+            filename = "output.mp4"
+            output = cv2.VideoWriter(filename, 
+                                    cv2.VideoWriter_fourcc("m" , "p", "4", "v"), 
+                                    fps = FPS, 
+                                    frameSize = (mean_height ,mean_width))
+            for image in new_image_list:
+                output.write(cv2.imread(image))
+            
+            output.release()
 
-    video_label.place_forget()
+            download_path = str(Path.home()) + "\Downloads"
+            if(os.path.isfile(download_path + f"\{filename}")):
+                os.remove(download_path + f"\{filename}")
+            
+            shutil.move(os.getcwd() + f"\{filename}", download_path)
 
-    download_path = str(Path.home()) + "\Downloads"
-    
-    filename = "output.mp4"
-    output = cv2.VideoWriter(filename, cv2.VideoWriter_fourcc("m", "p", "4", "v"), fps = FPS, frameSize = (mean_height, mean_width))
-    for image in new_image_list:
-        output.write(cv2.imread(image))
-    
-    output.release()
+            video_player.load(f"{download_path}\{filename}")
+            timestamp.set(0)
+            video_player.bind("<<Duration>>", duration)
+            video_player.bind("<<SecondChanged>>", get_timestamp)
 
-    if(os.path.isfile(download_path + f"\{filename}")):
-        os.remove(download_path + f"\{filename}")
-    
-    shutil.move(os.getcwd() + f"\{filename}", download_path)
-
-    video_player.load(f"{download_path}\{filename}")
-    timestamp.set(0)
-    video_player.bind("<<Duration>>", duration)
-    video_player.bind("<<SecondChanged>>", get_timestamp)
-
-    # os.startfile(download_path + f"\{filename}")
+            # os.startfile(download_path + f"\{filename}")
+        except Exception as e:
+            print(e)
+            error_label.config(text = "Error: Must import a folder of images and/or select more than one image.")
 
 def select(event):
-    global image
-    
     if(len(listbox.curselection()) == 0):
         image_display.config(image = '', height = 0, width = 0)
     else:
@@ -105,14 +118,6 @@ def duration(event):
 def get_timestamp(event):
     timestamp.set(video_player.current_duration())
 
-def clear_fps_entry(event):
-    if(not fps_entry.get().isdecimal()):
-        fps_entry.delete(0, "end")
-
-def clear_time_entry(event):
-    if(not time_entry.get().isdecimal()):
-        time_entry.delete(0, "end")
-
 def select_all():
     global stack
     if(select_option.get() == 1):
@@ -122,6 +127,14 @@ def select_all():
         listbox.selection_clear(0, END)
         stack = []
 
+def validate(input):
+    if(input.isdigit()):
+        error_label.config(text = "")
+        return True
+    else:
+        error_label.config(text = "Error: Input must be an integer.")
+        return False
+    
 # All of Tkinter GUI objects 
 root = Tk()
 root.state("zoomed")
@@ -153,18 +166,25 @@ facecode_option = IntVar()
 facecode_checkbox = Checkbutton(top_frame, variable = facecode_option, onvalue = 1, offvalue = 0, text = "Use Facecode?", bg = menu_bar, fg = text_color, selectcolor = menu_bar, activebackground = menu_bar, activeforeground = text_color)
 facecode_checkbox.pack(side = "left", padx = 5)
 
-fps_entry = Entry(top_frame, width = 5)
-fps_entry.insert(0, "FPS")
-fps_entry.pack(side = "left", padx = 5)
-fps_entry.bind("<FocusIn>", clear_fps_entry)
+error_label = Label(root, text = "", fg = "red", bg = background)
 
-time_entry = Entry(top_frame, width = 10)
-time_entry.insert(0, "In Seconds")
+fps_label = Label(top_frame, text = "FPS:", bg = menu_bar, fg = text_color)
+fps_label.pack(side = "left")
+
+vcmd = root.register(validate)
+fps_entry = Entry(top_frame, width = 5, validate = "key", validatecommand = (vcmd, '%S'))
+fps_entry.pack(side = "left", padx = 5)
+
+time_label = Label(top_frame, text = "Length of Video in Seconds:", bg = menu_bar, fg = text_color)
+time_label.pack(side = "left")
+
+time_entry = Entry(top_frame, width = 10, validate = "key", validatecommand = (vcmd, '%S'))
 time_entry.pack(side = "left", padx = 5)
-time_entry.bind("<FocusIn>", clear_time_entry)
 
 preview_button = Button(top_frame, text = "Preview", command = preview, bg = menu_bar, fg = text_color)
 preview_button.pack(side = "left", padx = 5)
+
+error_label.pack()
 
 bottom_frame = Frame(root, bg = background, height = 0.5 * win_height)
 bottom_frame.pack(padx = 5)

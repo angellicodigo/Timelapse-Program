@@ -82,7 +82,8 @@ def preview():
             video_player.bind("<<SecondChanged>>", get_timestamp)
 
             # os.startfile(download_path + f"\{filename}")
-        except:
+        except Exception as e:
+            #print(e)
             error_label.config(text = "Error: Must import a folder of images and/or select more than one image.")
 
 def select(event):

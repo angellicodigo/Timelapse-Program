@@ -12,8 +12,8 @@ import shutil
 
 def import_folder():
     global image_list
-
     global directory
+
     directory = askdirectory(mustexist = True)
     
     if(os.path.isdir(directory)):
@@ -24,7 +24,9 @@ def import_folder():
             if(path.endswith(".jpg") or path.endswith(".png")):
                 image_list.append(path)
                 listbox.insert(END, path[len(directory) + 1:])
- 
+    if(len(image_list) == 0):
+        error_label.config(text = "Error: No found images in the folder.")
+
 def preview():
     if((len(fps_entry.get()) == 0 and len(time_entry.get()) == 0)):
         error_label.config(text = "Error: Must have a value for either \"FPS\" or \"Length of Video in Seconds\".")
@@ -32,61 +34,65 @@ def preview():
         error_label.config(text = "Error: Cannot have a value for both \"FPS\" and \"Length of Video in Seconds\".")
     elif((len(fps_entry.get()) > 0 and int(fps_entry.get()) == 0) or (len(time_entry.get()) > 0 and int(time_entry.get()) == 0)):
         error_label.config(text = "Error: Cannot have a value for 0.")
+    elif(len(stack) == 0):
+        error_label.config(text = "Error: Must import a folder of images and/or select more than one image.")
     else:
-        try:
-            error_label.config(text = "")
+        error_label.config(text = "")
 
-            new_image_list = [image_list[index] for index in stack]
-            if(facecode_option == 1):
-                for i in range(len(new_image_list)):
-                    new_image_list[i] = facecode(new_image_list[i])
+        new_image_list = [image_list[index] for index in stack]
+        if(facecode_option == 1):
+            for i in range(len(new_image_list)):
+                new_image_list[i] = facecode(new_image_list[i])
 
-            total_width = 0
-            total_height = 0
+        total_width = 0
+        total_height = 0
 
-            if(len(fps_entry.get()) > 0):
-                FPS = int(fps_entry.get())
-            elif(len(time_entry.get()) > 0):
-                FPS = round(len(new_image_list) / int(time_entry.get()))
+        if(len(fps_entry.get()) > 0):
+            FPS = int(fps_entry.get())
+        elif(len(time_entry.get()) > 0):
+            FPS = round(len(new_image_list) / int(time_entry.get()))
 
-            for path in new_image_list:
-                img = cv2.imread(path)
-                width, height, _ = img.shape
-                total_width += width
-                total_height += height
+        for path in new_image_list:
+            img = cv2.imread(path)
+            width, height, _ = img.shape
+            total_width += width
+            total_height += height
 
-            mean_width = int(total_width / len(new_image_list))
-            mean_height = int(total_height / len(new_image_list))
+        mean_width = int(total_width / len(new_image_list))
+        mean_height = int(total_height / len(new_image_list))
 
-            video_label.place_forget()
-            
-            filename = "output.mp4"
-            output = cv2.VideoWriter(filename, 
-                                    cv2.VideoWriter_fourcc("m" , "p", "4", "v"), 
-                                    fps = FPS, 
-                                    frameSize = (mean_height ,mean_width))
-            for image in new_image_list:
-                output.write(cv2.imread(image))
-            
-            output.release()
+        video_label.place_forget()
+        
+        filename = "output.mp4"
+        output = cv2.VideoWriter(filename, 
+                                cv2.VideoWriter_fourcc("m" , "p", "4", "v"), 
+                                fps = FPS, 
+                                frameSize = (mean_height ,mean_width))
+        for image in new_image_list:
+            output.write(cv2.imread(image))
+        
+        output.release()
 
-            download_path = str(Path.home()) + "\Downloads"
-            if(os.path.isfile(download_path + f"\{filename}")):
-                os.remove(download_path + f"\{filename}")
-            
-            shutil.move(os.getcwd() + f"\{filename}", download_path)
+        if duration > 0: # Checks if a video was already created
+            video_player.seek(int(len(new_image_list) / FPS)) # If the video isn't over, replacing it will cause an error
+            video_player.stop() # Supppose to stop and close the video file, but it doesn't without the previous line
 
-            video_player.load(f"{download_path}\{filename}")
-            timestamp.set(0)
-            video_player.bind("<<Duration>>", duration)
-            video_player.bind("<<SecondChanged>>", get_timestamp)
+        # Copying the video file in this directory to the Downloads
+        download_path = str(Path.home()) + "\Downloads"
 
-            # os.startfile(download_path + f"\{filename}")
-        except Exception as e:
-            #print(e)
-            error_label.config(text = "Error: Must import a folder of images and/or select more than one image.")
+        shutil.copy(os.getcwd() + f"\{filename}", download_path)    
+    
+        video_player.load(filename)
+        video_player.seek(0)
+        timestamp.set(0)
+
+        video_player.bind("<<Duration>>", duration_event)
+        video_player.bind("<<SecondChanged>>", get_timestamp)
+        # os.startfile(download_path + f"\{filename}")
 
 def select(event):
+    global image # DON"T DELETE, it won't show image
+
     if(len(listbox.curselection()) == 0):
         image_display.config(image = '', height = 0, width = 0)
     else:
@@ -94,8 +100,9 @@ def select(event):
             stack.append([i for i in list(listbox.curselection()) if i not in stack][0])
         elif(len(listbox.curselection()) < len(stack)):
             stack.remove([i for i in stack if i not in list(listbox.curselection())][0])
-
+            
         image_pil = Image.fromarray(cv2.cvtColor(cv2.imread(image_list[stack[-1]]), cv2.COLOR_BGR2RGB))
+
         height, width = image_pil.size
         image = ImageTk.PhotoImage(image_pil)
         image_display.config(image = image, height = height, width = width)
@@ -109,9 +116,9 @@ def play():
 def seek(value):
     video_player.seek(int(value))
 
-def duration(event):
-    duration = video_player.video_info()["duration"]
-    duration = round(duration)
+def duration_event(event):
+    global duration
+    duration = int(video_player.video_info()["duration"])
     end_time["text"] = str(datetime.timedelta(seconds = duration))
     slider["to"] = duration
 
@@ -172,15 +179,16 @@ fps_label = Label(top_frame, text = "FPS:", bg = menu_bar, fg = text_color)
 fps_label.pack(side = "left")
 
 vcmd = root.register(validate)
-fps_entry = Entry(top_frame, width = 5, validate = "key", validatecommand = (vcmd, '%S'))
+fps_entry = Entry(top_frame, width = 4, validate = "key", validatecommand = (vcmd, '%S'))
 fps_entry.pack(side = "left", padx = 5)
 
 time_label = Label(top_frame, text = "Length of Video in Seconds:", bg = menu_bar, fg = text_color)
 time_label.pack(side = "left")
 
-time_entry = Entry(top_frame, width = 10, validate = "key", validatecommand = (vcmd, '%S'))
+time_entry = Entry(top_frame, width = 4, validate = "key", validatecommand = (vcmd, '%S'))
 time_entry.pack(side = "left", padx = 5)
 
+duration = 0
 preview_button = Button(top_frame, text = "Preview", command = preview, bg = menu_bar, fg = text_color)
 preview_button.pack(side = "left", padx = 5)
 

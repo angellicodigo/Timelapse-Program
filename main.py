@@ -26,6 +26,8 @@ def import_folder():
                 listbox.insert(END, path[len(directory) + 1:])
     if(len(image_list) == 0):
         error_label.config(text = "Error: No found images in the folder.")
+    else:
+        error_label.config(text = "")
 
 def preview():
     if((len(fps_entry.get()) == 0 and len(time_entry.get()) == 0)):
@@ -62,36 +64,36 @@ def preview():
         mean_height = int(total_height / len(new_image_list))
 
         video_label.place_forget()
+        try:
+            output = cv2.VideoWriter(filename, 
+                                    cv2.VideoWriter_fourcc("m" , "p", "4", "v"), 
+                                    fps = FPS, 
+                                    frameSize = (mean_height ,mean_width))
+            for image in new_image_list:
+                output.write(cv2.imread(image))
         
-        filename = "output.mp4"
-        output = cv2.VideoWriter(filename, 
-                                cv2.VideoWriter_fourcc("m" , "p", "4", "v"), 
-                                fps = FPS, 
-                                frameSize = (mean_height ,mean_width))
-        for image in new_image_list:
-            output.write(cv2.imread(image))
-        
-        output.release()
+            output.release()
+            try:
+                if duration > 0: # Checks if a video was already created
+                    video_player.seek(int(len(new_image_list) / FPS)) # If the video isn't over, replacing it will cause an error
+                    video_player.stop() # Supppose to stop and close the video file, but it doesn't without the previous line
 
-        if duration > 0: # Checks if a video was already created
-            video_player.seek(int(len(new_image_list) / FPS)) # If the video isn't over, replacing it will cause an error
-            video_player.stop() # Supppose to stop and close the video file, but it doesn't without the previous line
+                shutil.copy(os.getcwd() + f"\{filename}", str(Path.home()) + "\Downloads")    
+            
+                video_player.load(filename)
+                video_player.seek(0)
+                timestamp.set(0)
 
-        # Copying the video file in this directory to the Downloads
-        download_path = str(Path.home()) + "\Downloads"
-
-        shutil.copy(os.getcwd() + f"\{filename}", download_path)    
-    
-        video_player.load(filename)
-        video_player.seek(0)
-        timestamp.set(0)
-
-        video_player.bind("<<Duration>>", duration_event)
-        video_player.bind("<<SecondChanged>>", get_timestamp)
-        # os.startfile(download_path + f"\{filename}")
+                video_player.bind("<<Duration>>", duration_event)
+                video_player.bind("<<SecondChanged>>", get_timestamp)
+                # os.startfile(download_path + f"\{filename}")
+            except:
+                error_label.config(text = "Error: The Downloads folder couldn't be accessed.")
+        except:
+            error_label.config(text = "Error: There was an issue at creating the video. Try increasing the number of images selected or the FPS.")
 
 def select(event):
-    global image # DON"T DELETE, it won't show image
+    global image # DON"T DELETE, it won't show the image
 
     if(len(listbox.curselection()) == 0):
         image_display.config(image = '', height = 0, width = 0)
@@ -108,10 +110,14 @@ def select(event):
         image_display.config(image = image, height = height, width = width)
 
 def play():
-    if video_player.is_paused():
-        video_player.play()
+    if(os.path.exists(filename)):
+        error_label.config(text = "")
+        if video_player.is_paused():
+            video_player.play()
+        else:
+            video_player.pause()
     else:
-        video_player.pause()
+        error_label.config(text = "Error: A video must be created before being able to play.")
 
 def seek(value):
     video_player.seek(int(value))
@@ -214,8 +220,8 @@ video_frame = Frame(bottom_frame, height = 0.5 * win_height, width = 0.5 * win_w
 video_frame.pack_propagate(False)
 video_frame.pack(side = "left", padx = 10)
 
-video_player = TkinterVideo(video_frame, scaled = True)
-video_player.set_scaled(False)
+filename = "output.mp4"
+video_player = TkinterVideo(video_frame, scaled = False)
 video_player.keep_aspect(True)
 video_player.pack(expand = True, fill = "both")
 

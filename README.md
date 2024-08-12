@@ -3,4 +3,4 @@ My program for my IB HL CS class. My client created a program called "Facecode" 
 
 Future improvements include being able to input other file formats, like ZIP and RAR, having a restore point incase the program crashes, and more features!
 
-Video that explains the program
+Video that explains the program: https://youtu.be/6t8-erFPppg?si=ntsQVYkuH0_XcbUT
